@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>體育科成績計算與輸入系統 (Excel版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        h2 { color: #2c3e50; }
+        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .controls { margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #8e44ad; color: white; } /* 換成紫色區分 Excel 版 */
+        input[type="number"] { width: 60px; padding: 5px; text-align: center; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 16px; }
+        .btn-primary { background-color: #8e44ad; }
+        .btn-primary:hover { background-color: #9b59b6; }
+        .btn-success { background-color: #27ae60; margin-left: 10px; }
+        .btn-success:hover { background-color: #2ecc71; }
+        .total-score { font-weight: bold; color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 體育科成績輸入系統 (Excel 直接讀取版)</h2>
+    <div class="controls">
+        <label for="excelFileInput"><b>第一步：上傳班級 Excel 檔案 (.xlsx)</b></label><br><br>
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" />
+        <button class="btn btn-success" id="exportBtn" style="display:none;" onclick="exportToExcel()">💾 匯出最終成績 (Excel)</button>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table id="scoreTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>班別</th>
+                    <th>姓名</th>
+                    <th>體適能原始分<br>(滿分20)</th>
+                    <th>體適能得分<br>(佔40%)</th>
+                    <th>體育技能<br>(手動輸入 /40)</th>
+                    <th>知識<br>(手動輸入 /10)</th>
+                    <th>態度<br>(手動輸入 /10)</th>
+                    <th>最終總分<br>(/100)</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let studentsData = []; 
+
+    // 監聽檔案上傳事件
+    document.getElementById('excelFileInput').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            // 將檔案轉換為可以被 SheetJS 讀取的格式
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            
+            // 預設讀取第一個工作表 (Sheet)
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // 將 Excel 表格轉換為 2D 陣列 (類似 CSV 的結構)
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            
+            processData(jsonData);
+        };
+        
+        // 以 ArrayBuffer 形式讀取檔案
+        reader.readAsArrayBuffer(file);
+    });
+
+    function processData(data) {
+        studentsData = []; 
+        
+        // 從第二行開始讀取 (略過標題行)
+        for (let i = 1; i < data.length; i++) {
+            let row = data[i];
+            
+            // 如果這行是空的，直接跳過
+            if (!row || row.length === 0) continue;
+
+            let cls = row[0];
+            let name = row[1];
+            
+            // 避免讀到非學生資料列
+            if (!cls || !name || cls === "Class") continue;
+
+            let score1 = parseInt(row[8]) || 0;
+            let score2 = parseInt(row[10]) || 0;
+            let score3 = parseInt(row[12]) || 0;
+            let score4 = parseInt(row[14]) || 0;
+
+            let fitnessRaw = score1 + score2 + score3 + score4; 
+            let fitness40 = fitnessRaw * 2; 
+
+            studentsData.push({
+                cls: cls,
+                name: name,
+                fitnessRaw: fitnessRaw,
+                fitness40: fitness40,
+                skills: 0,
+                knowledge: 0,
+                attitude: 0,
+                total: fitness40
+            });
+        }
+
+        renderTable();
+        document.getElementById('scoreTable').style.display = 'table';
+        document.getElementById('exportBtn').style.display = 'inline-block';
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = ''; 
+
+        studentsData.forEach((student, index) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${student.cls}</td>
+                <td>${student.name}</td>
+                <td>${student.fitnessRaw}</td>
+                <td><b>${student.fitness40}</b></td>
+                <td><input type="number" min="0" max="40" value="${student.skills}" oninput="updateScore(${index}, 'skills', this.value)"></td>
+                <td><input type="number" min="0" max="10" value="${student.knowledge}" oninput="updateScore(${index}, 'knowledge', this.value)"></td>
+                <td><input type="number" min="0" max="10" value="${student.attitude}" oninput="updateScore(${index}, 'attitude', this.value)"></td>
+                <td class="total-score" id="total-${index}">${student.total}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateScore(index, field, value) {
+        let numValue = parseFloat(value) || 0;
+        studentsData[index][field] = numValue;
+        
+        let s = studentsData[index];
+        s.total = s.fitness40 + s.skills + s.knowledge + s.attitude;
+        
+        document.getElementById(`total-${index}`).innerText = s.total;
+    }
+
+    // 匯出功能：直接匯出為真正的 Excel (.xlsx) 檔案
+    function exportToExcel() {
+        // 1. 準備標題列
+        let exportData = [
+            ["班別", "姓名", "體適能原始分(20)", "體適能換算分(40)", "體育技能(40)", "知識(10)", "態度(10)", "最終總分(100)"]
+        ];
+        
+        // 2. 加入學生分數資料
+        studentsData.forEach(s => {
+            exportData.push([s.cls, s.name, s.fitnessRaw, s.fitness40, s.skills, s.knowledge, s.attitude, s.total]);
+        });
+
+        // 3. 將資料轉換為 Excel 工作表
+        const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+        
+        // 4. 建立一個新的活頁簿並加入工作表
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "最終成績");
+
+        // 5. 觸發下載檔案
+        let className = studentsData.length > 0 ? studentsData[0].cls : "Class";
+        XLSX.writeFile(workbook, `${className}_體育科最終成績.xlsx`);
+    }
+</script>
+
+</body>
+</html>
