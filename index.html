@@ -11,7 +11,7 @@
         .controls { margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #8e44ad; color: white; } /* 換成紫色區分 Excel 版 */
+        th { background-color: #8e44ad; color: white; }
         input[type="number"] { width: 60px; padding: 5px; text-align: center; }
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 16px; }
         .btn-primary { background-color: #8e44ad; }
@@ -37,7 +37,7 @@
                 <tr>
                     <th>班別</th>
                     <th>姓名</th>
-                    <th>體適能原始分<br>(滿分20)</th>
+                    <th>體適能原始分<br>(滿分10)</th>
                     <th>體適能得分<br>(佔40%)</th>
                     <th>體育技能<br>(手動輸入 /40)</th>
                     <th>知識<br>(手動輸入 /10)</th>
@@ -62,47 +62,44 @@
         const reader = new FileReader();
         
         reader.onload = function(e) {
-            // 將檔案轉換為可以被 SheetJS 讀取的格式
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
             
-            // 預設讀取第一個工作表 (Sheet)
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // 將 Excel 表格轉換為 2D 陣列 (類似 CSV 的結構)
             const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
             
             processData(jsonData);
         };
         
-        // 以 ArrayBuffer 形式讀取檔案
         reader.readAsArrayBuffer(file);
     });
 
     function processData(data) {
         studentsData = []; 
         
-        // 從第二行開始讀取 (略過標題行)
         for (let i = 1; i < data.length; i++) {
             let row = data[i];
             
-            // 如果這行是空的，直接跳過
             if (!row || row.length === 0) continue;
 
             let cls = row[0];
             let name = row[1];
             
-            // 避免讀到非學生資料列
             if (!cls || !name || cls === "Class") continue;
 
+            // 讀取四個體適能項目的分數 (沒考的項目會是 0)
             let score1 = parseInt(row[8]) || 0;
             let score2 = parseInt(row[10]) || 0;
             let score3 = parseInt(row[12]) || 0;
             let score4 = parseInt(row[14]) || 0;
 
+            // 由於只考兩項，滿分為 10 分
             let fitnessRaw = score1 + score2 + score3 + score4; 
-            let fitness40 = fitnessRaw * 2; 
+            
+            // 將原始分乘以 4，轉換為 40 分滿分
+            let fitness40 = fitnessRaw * 4; 
 
             studentsData.push({
                 cls: cls,
@@ -151,26 +148,21 @@
         document.getElementById(`total-${index}`).innerText = s.total;
     }
 
-    // 匯出功能：直接匯出為真正的 Excel (.xlsx) 檔案
     function exportToExcel() {
-        // 1. 準備標題列
+        // 更新了匯出的標題：體適能原始分改為(10)
         let exportData = [
-            ["班別", "姓名", "體適能原始分(20)", "體適能換算分(40)", "體育技能(40)", "知識(10)", "態度(10)", "最終總分(100)"]
+            ["班別", "姓名", "體適能原始分(10)", "體適能換算分(40)", "體育技能(40)", "知識(10)", "態度(10)", "最終總分(100)"]
         ];
         
-        // 2. 加入學生分數資料
         studentsData.forEach(s => {
             exportData.push([s.cls, s.name, s.fitnessRaw, s.fitness40, s.skills, s.knowledge, s.attitude, s.total]);
         });
 
-        // 3. 將資料轉換為 Excel 工作表
         const worksheet = XLSX.utils.aoa_to_sheet(exportData);
         
-        // 4. 建立一個新的活頁簿並加入工作表
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "最終成績");
 
-        // 5. 觸發下載檔案
         let className = studentsData.length > 0 ? studentsData[0].cls : "Class";
         XLSX.writeFile(workbook, `${className}_體育科最終成績.xlsx`);
     }
