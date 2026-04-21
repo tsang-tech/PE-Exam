@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>體育科全校成績管理系統 (分級終極版)</title>
+    <title>體育科全校成績管理系統 (分級終極版 - 修正版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eef2f3; margin: 0; padding: 20px; }
@@ -185,11 +185,11 @@
 
     updateConfigLists();
 
-    // 工具：從班別名稱自動提取年級 (例如 "3B" -> "3", "P6D" -> "6")
+    // 工具：從班別名稱自動提取年級，並確保只匹配 1 到 6 的數字（防止其他名稱干擾）
     function getGradeFromClass(clsStr) {
         if (!clsStr) return "1";
-        const match = String(clsStr).match(/\d/);
-        return match ? match[0] : "1";
+        const match = String(clsStr).match(/[1-6]/); 
+        return match ? match[0] : "1"; 
     }
 
     // 1. 處理 Excel 上傳與生成班級選單
@@ -242,7 +242,7 @@
                     cls: row[0],
                     name: row[1],
                     fitnessRaw: s1 + s2 + s3 + s4,
-                    skillScores: {},
+                    skillsScores: {},   // 這裡修復了 Bug (加上 s)
                     knowledgeScores: {},
                     attitudeScores: {}
                 };
@@ -312,7 +312,7 @@
         students.forEach(s => {
             const fitness40 = s.fitnessRaw * 4;
             
-            const skillTotal = Object.values(s.skillScores).reduce((a,b) => a+b, 0);
+            const skillTotal = Object.values(s.skillsScores).reduce((a,b) => a+b, 0); // 已修正
             const skillFinal = currentConfig.skills.length ? (skillTotal / (currentConfig.skills.length * 10)) * 40 : 0;
             
             const knowTotal = Object.values(s.knowledgeScores).reduce((a,b) => a+b, 0);
@@ -378,12 +378,12 @@
 
     function updateScore(sIdx, type, item, val) {
         students[sIdx][`${type}Scores`][item] = parseFloat(val);
-        renderSummary(); // 即時更新總分
+        renderSummary(); 
     }
 
     // --- 匯出/匯入 分級考核架構設定 ---
     function exportConfig() {
-        const data = [["Grade", "Category", "ItemName"]]; // 加入年級欄位
+        const data = [["Grade", "Category", "ItemName"]]; 
         
         for (let g = 1; g <= 6; g++) {
             config[g.toString()].skills.forEach(i => data.push([g, "Skill", i]));
@@ -404,12 +404,10 @@
             const wb = XLSX.read(data, {type: 'array'});
             const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             
-            // 先清空所有舊設定
             for (let i = 1; i <= 6; i++) {
                 config[i.toString()] = { skills: [], knowledge: [], attitude: [] };
             }
             
-            // 讀取並分配到各年級
             json.forEach(row => {
                 let g = row.Grade ? row.Grade.toString() : "1";
                 if(config[g]) {
@@ -437,7 +435,7 @@
         
         students.forEach(s => {
             const fitness40 = s.fitnessRaw * 4;
-            const skillTotal = Object.values(s.skillScores).reduce((a,b) => a+b, 0);
+            const skillTotal = Object.values(s.skillsScores).reduce((a,b) => a+b, 0); // 已修正
             const skillFinal = currentConfig.skills.length ? (skillTotal / (currentConfig.skills.length * 10)) * 40 : 0;
             const knowTotal = Object.values(s.knowledgeScores).reduce((a,b) => a+b, 0);
             const knowFinal = currentConfig.knowledge.length ? (knowTotal / (currentConfig.knowledge.length * 5)) * 10 : 0;
