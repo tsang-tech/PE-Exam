@@ -2,17 +2,18 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>體育科全校成績管理系統 (終極版)</title>
+    <title>體育科全校成績管理系統 (分級終極版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eef2f3; margin: 0; padding: 20px; }
         .container { background-color: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); max-width: 1300px; margin: auto; }
         
         /* 頂部控制區 */
-        .header-controls { display: flex; align-items: center; justify-content: space-between; background: #fff; padding-bottom: 15px; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .header-controls { display: flex; align-items: center; justify-content: space-between; background: #fff; padding-bottom: 15px; border-bottom: 2px solid #eee; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
         .upload-area { display: flex; align-items: center; gap: 15px; }
-        .class-selector-area { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #d35400; font-size: 1.1em; }
-        select#classSelect { padding: 8px 15px; font-size: 1em; border-radius: 6px; border: 2px solid #3498db; cursor: pointer; }
+        .class-selector-area { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #d35400; font-size: 1.1em; background: #fff3e0; padding: 10px 15px; border-radius: 8px; border: 1px solid #ffe0b2; }
+        select { padding: 8px 15px; font-size: 1em; border-radius: 6px; border: 2px solid #ccc; cursor: pointer; }
+        select#classSelect { border-color: #d35400; }
 
         /* 分頁標籤 */
         .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; flex-wrap: wrap; }
@@ -33,7 +34,7 @@
         .th-attitude { background-color: #e67e22; }
         
         select.score-dropdown { padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 65px; text-align: center; font-size: 1em; }
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; transition: 0.3s; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; transition: 0.3s; margin-right: 5px; }
         .btn-purple { background-color: #8e44ad; }
         .btn-blue { background-color: #2980b9; }
         .btn-orange { background-color: #e67e22; }
@@ -41,10 +42,11 @@
         .btn-dark { background-color: #34495e; }
         .btn:hover { opacity: 0.8; transform: translateY(-1px); }
         
-        .setup-section { margin-bottom: 25px; border: 1px solid #eee; padding: 20px; border-radius: 8px; background-color: #fcfcfc; }
-        input[type="text"] { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        .setup-section { margin-bottom: 20px; border: 1px solid #eee; padding: 20px; border-radius: 8px; background-color: #fcfcfc; }
+        input[type="text"] { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 220px; }
         .total-score { font-weight: bold; color: #c0392b; font-size: 1.1em; }
         .hint { font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px; display: block; }
+        .grade-badge { background: #3498db; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -52,15 +54,16 @@
 <div class="container">
     <div class="header-controls">
         <div class="upload-area">
-            <h2>🏆 體育科全校成績系統</h2>
+            <h2 style="margin:0;">🏆 體育科全校成績系統</h2>
             <div>
-                <span class="hint">1. 請上傳全校 Excel 總表 (.xlsx)</span>
+                <span class="hint" style="margin-bottom:5px;">1. 請上傳全校 Excel 總表 (.xlsx)</span>
                 <input type="file" id="excelInput" accept=".xlsx, .xls" />
             </div>
         </div>
         <div class="class-selector-area" id="classSelectorArea" style="display:none;">
             <label for="classSelect">📚 目前輸入班級：</label>
             <select id="classSelect" onchange="switchClass(this.value)"></select>
+            <span id="currentGradeBadge" class="grade-badge">年級: -</span>
         </div>
     </div>
 
@@ -69,12 +72,12 @@
         <div class="tab" onclick="showTab('skills')">🏀 體育技能 (40%)</div>
         <div class="tab" onclick="showTab('knowledge')">📖 體育知識 (10%)</div>
         <div class="tab" onclick="showTab('attitude')">🤝 態度評估 (10%)</div>
-        <div class="tab" onclick="showTab('settings')">⚙️ 考核內容設置 (匯出/匯入)</div>
+        <div class="tab" onclick="showTab('settings')">⚙️ 考核內容設置 (分級)</div>
     </div>
 
     <div id="summary" class="tab-content active">
         <button class="btn btn-green" onclick="exportCurrentClassScores()" style="margin-bottom:15px;">💾 匯出目前班級最終成績</button>
-        <span class="hint" style="display:inline-block; margin-left:15px;">(所有分頁的分數會自動匯總於此)</span>
+        <span class="hint" style="display:inline-block; margin-left:15px;">(分數會根據該班級所屬年級的考核架構自動計算)</span>
         <div style="overflow-x:auto;">
             <table id="summaryTable">
                 <thead>
@@ -114,31 +117,50 @@
     </div>
 
     <div id="settings" class="tab-content">
-        <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 8px;">
-            <h3>🔄 統一架構管理</h3>
-            <p style="color:#555;">您可在此匯出目前設計好的「技能、知識、態度」考核題目。下次考試或其他老師只需「匯入」該設定檔，即可統一評分標準。</p>
-            <button class="btn btn-dark" onclick="exportConfig()">📥 匯出考核架構檔 (.xlsx)</button>
-            <button class="btn btn-dark" onclick="document.getElementById('importConfigInput').click()">📤 匯入考核架構檔</button>
-            <input type="file" id="importConfigInput" style="display:none" accept=".xlsx" onchange="importConfig(event)">
+        <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <div>
+                <h3 style="margin-top:0;">🔄 全校分級架構管理</h3>
+                <p style="color:#555; margin-bottom:0;">在此可一鍵匯出或匯入一至六年級的所有設定。</p>
+            </div>
+            <div>
+                <button class="btn btn-dark" onclick="exportConfig()">📥 匯出考核架構檔 (.xlsx)</button>
+                <button class="btn btn-dark" onclick="document.getElementById('importConfigInput').click()">📤 匯入考核架構檔</button>
+                <input type="file" id="importConfigInput" style="display:none" accept=".xlsx" onchange="importConfig(event)">
+            </div>
+        </div>
+
+        <div style="background: #fff9c4; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight:bold; border: 1px solid #fbc02d;">
+            <label for="settingGradeSelect" style="font-size:1.1em;">🛠️ 目前正在設定的年級：</label>
+            <select id="settingGradeSelect" onchange="switchSettingGrade(this.value)" style="border-color:#fbc02d; margin-left:10px;">
+                <option value="1">小一 (Grade 1)</option>
+                <option value="2">小二 (Grade 2)</option>
+                <option value="3">小三 (Grade 3)</option>
+                <option value="4">小四 (Grade 4)</option>
+                <option value="5">小五 (Grade 5)</option>
+                <option value="6">小六 (Grade 6)</option>
+            </select>
         </div>
 
         <div class="setup-section">
             <h3 style="color:#8e44ad;">🏀 設置技能項目 (0-10分)</h3>
             <input type="text" id="newSkillName" placeholder="輸入技能名稱 (如: 籃球傳球)">
             <button class="btn btn-purple" onclick="addItem('skills')">新增技能項目</button>
-            <div id="skillsList" style="margin-top:10px; color:#666;"></div>
+            <button class="btn" style="background:#e74c3c;" onclick="clearItems('skills')">清空此年級項目</button>
+            <div id="skillsList" style="margin-top:10px; color:#666; font-weight:bold;"></div>
         </div>
         <div class="setup-section">
             <h3 style="color:#2980b9;">📖 設置知識題目 (0-5分)</h3>
             <input type="text" id="newKnowledgeName" placeholder="輸入知識題目 (如: 規則理解)">
             <button class="btn btn-blue" onclick="addItem('knowledge')">新增知識題目</button>
-            <div id="knowledgeList" style="margin-top:10px; color:#666;"></div>
+            <button class="btn" style="background:#e74c3c;" onclick="clearItems('knowledge')">清空此年級題目</button>
+            <div id="knowledgeList" style="margin-top:10px; color:#666; font-weight:bold;"></div>
         </div>
         <div class="setup-section">
             <h3 style="color:#e67e22;">🤝 設置態度項目 (0-10分)</h3>
             <input type="text" id="newAttitudeName" placeholder="輸入態度項目 (如: 課堂服裝)">
             <button class="btn btn-orange" onclick="addItem('attitude')">新增態度項目</button>
-            <div id="attitudeList" style="margin-top:10px; color:#666;"></div>
+            <button class="btn" style="background:#e74c3c;" onclick="clearItems('attitude')">清空此年級項目</button>
+            <div id="attitudeList" style="margin-top:10px; color:#666; font-weight:bold;"></div>
         </div>
     </div>
 </div>
@@ -146,19 +168,29 @@
 <script>
     // 核心數據結構
     let globalWorkbook = null; 
-    let classDataStore = {}; // 儲存全校各班級資料，格式： { "1A": [...], "1B": [...] }
-    let currentClass = "";   // 目前選中的班級
-    let students = [];       // 目前渲染用的班級名單指標
+    let classDataStore = {}; 
+    let currentClass = "";   
+    let students = [];       
+    let currentSettingGrade = "1"; // 設定頁面目前正在編輯的年級
     
-    // 預設考核架構
-    let config = {
-        skillsItems: ["技能項目1"],
-        knowledgeItems: ["知識題目1"],
-        attitudeItems: ["運動服裝", "課堂參與"]
-    };
+    // 初始化 1-6 年級的獨立架構設定
+    let config = {};
+    for (let i = 1; i <= 6; i++) {
+        config[i.toString()] = {
+            skills: [`技能項目(小${i})`],
+            knowledge: [`知識題目(小${i})`],
+            attitude: ["運動服裝", "課堂參與"]
+        };
+    }
 
-    // 初始化渲染架構列表
     updateConfigLists();
+
+    // 工具：從班別名稱自動提取年級 (例如 "3B" -> "3", "P6D" -> "6")
+    function getGradeFromClass(clsStr) {
+        if (!clsStr) return "1";
+        const match = String(clsStr).match(/\d/);
+        return match ? match[0] : "1";
+    }
 
     // 1. 處理 Excel 上傳與生成班級選單
     document.getElementById('excelInput').addEventListener('change', function(e) {
@@ -170,11 +202,12 @@
             const data = new Uint8Array(event.target.result);
             globalWorkbook = XLSX.read(data, {type: 'array'});
             
-            // 建立下拉選單
             const classSelect = document.getElementById('classSelect');
             classSelect.innerHTML = '';
             
             globalWorkbook.SheetNames.forEach(sheetName => {
+                // 自動跳過可能是目錄或非班級的分頁
+                if(sheetName.includes("Database")) return; 
                 let option = document.createElement("option");
                 option.text = sheetName;
                 option.value = sheetName;
@@ -183,17 +216,19 @@
             
             document.getElementById('classSelectorArea').style.display = 'flex';
             
-            // 預設載入第一個班級
-            switchClass(globalWorkbook.SheetNames[0]);
+            if(classSelect.options.length > 0) {
+                switchClass(classSelect.options[0].value);
+            }
         };
         reader.readAsArrayBuffer(file);
     });
 
-    // 2. 切換班級邏輯 (不會覆蓋已輸入的資料)
+    // 2. 切換班級邏輯
     function switchClass(sheetName) {
         currentClass = sheetName;
+        let grade = getGradeFromClass(currentClass);
+        document.getElementById('currentGradeBadge').innerText = `系統判定年級: 小${grade}`;
         
-        // 如果這個班級還沒被載入過，從 Excel 讀取並初始化
         if (!classDataStore[sheetName]) {
             const sheet = globalWorkbook.Sheets[sheetName];
             const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
@@ -203,12 +238,10 @@
                 let s2 = parseInt(row[10]) || 0;
                 let s3 = parseInt(row[12]) || 0;
                 let s4 = parseInt(row[14]) || 0;
-                let fitnessRaw = s1 + s2 + s3 + s4; // 滿分10
-
                 return {
                     cls: row[0],
                     name: row[1],
-                    fitnessRaw: fitnessRaw,
+                    fitnessRaw: s1 + s2 + s3 + s4,
                     skillScores: {},
                     knowledgeScores: {},
                     attitudeScores: {}
@@ -216,7 +249,6 @@
             });
         }
         
-        // 切換指標到目前班級
         students = classDataStore[sheetName];
         renderAll();
     }
@@ -227,29 +259,39 @@
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         event.currentTarget.classList.add('active');
         document.getElementById(tabId).classList.add('active');
-        renderAll(); // 切換時自動重新計算更新
+        renderAll(); 
     }
 
-    // --- 項目管理 (Settings) ---
-    function addItem(type) {
-        let inputId, arr, listId;
-        if (type === 'skills') { inputId = 'newSkillName'; arr = config.skillsItems; }
-        else if (type === 'knowledge') { inputId = 'newKnowledgeName'; arr = config.knowledgeItems; }
-        else { inputId = 'newAttitudeName'; arr = config.attitudeItems; }
+    // --- 項目管理 (分年級 Settings) ---
+    function switchSettingGrade(gradeStr) {
+        currentSettingGrade = gradeStr;
+        updateConfigLists();
+    }
 
+    function addItem(type) {
+        let inputId = type === 'skills' ? 'newSkillName' : (type === 'knowledge' ? 'newKnowledgeName' : 'newAttitudeName');
         const input = document.getElementById(inputId);
         if (!input.value.trim()) return;
         
-        arr.push(input.value.trim());
+        config[currentSettingGrade][type].push(input.value.trim());
         input.value = '';
         updateConfigLists();
         renderAll();
     }
 
+    function clearItems(type) {
+        if(confirm(`確定要清空 小${currentSettingGrade} 的所有${type}項目嗎？`)){
+            config[currentSettingGrade][type] = [];
+            updateConfigLists();
+            renderAll();
+        }
+    }
+
     function updateConfigLists() {
-        document.getElementById('skillsList').innerText = "目前項目：" + (config.skillsItems.join("、 ") || "無");
-        document.getElementById('knowledgeList').innerText = "目前題目：" + (config.knowledgeItems.join("、 ") || "無");
-        document.getElementById('attitudeList').innerText = "目前項目：" + (config.attitudeItems.join("、 ") || "無");
+        let c = config[currentSettingGrade];
+        document.getElementById('skillsList').innerText = `小${currentSettingGrade} 項目：` + (c.skills.join("、 ") || "無 (請新增)");
+        document.getElementById('knowledgeList').innerText = `小${currentSettingGrade} 題目：` + (c.knowledge.join("、 ") || "無 (請新增)");
+        document.getElementById('attitudeList').innerText = `小${currentSettingGrade} 項目：` + (c.attitude.join("、 ") || "無 (請新增)");
     }
 
     // --- 核心渲染邏輯 ---
@@ -258,31 +300,27 @@
         renderSkills();
         renderKnowledge();
         renderAttitude();
-        renderSummary(); // 總表必須最後渲染，確保拿到最新計算的總分
+        renderSummary(); 
     }
 
-    // 渲染總分頁
     function renderSummary() {
         const body = document.getElementById('summaryBody');
         body.innerHTML = '';
+        let grade = getGradeFromClass(currentClass);
+        let currentConfig = config[grade];
         
         students.forEach(s => {
-            // 體適能 40% (原始滿分10分 * 4)
             const fitness40 = s.fitnessRaw * 4;
             
-            // 技能 40%
             const skillTotal = Object.values(s.skillScores).reduce((a,b) => a+b, 0);
-            const skillFinal = config.skillsItems.length ? (skillTotal / (config.skillsItems.length * 10)) * 40 : 0;
+            const skillFinal = currentConfig.skills.length ? (skillTotal / (currentConfig.skills.length * 10)) * 40 : 0;
             
-            // 知識 10%
             const knowTotal = Object.values(s.knowledgeScores).reduce((a,b) => a+b, 0);
-            const knowFinal = config.knowledgeItems.length ? (knowTotal / (config.knowledgeItems.length * 5)) * 10 : 0;
+            const knowFinal = currentConfig.knowledge.length ? (knowTotal / (currentConfig.knowledge.length * 5)) * 10 : 0;
 
-            // 態度 10%
             const attTotal = Object.values(s.attitudeScores).reduce((a,b) => a+b, 0);
-            const attFinal = config.attitudeItems.length ? (attTotal / (config.attitudeItems.length * 10)) * 10 : 0;
+            const attFinal = currentConfig.attitude.length ? (attTotal / (currentConfig.attitude.length * 10)) * 10 : 0;
 
-            // 總分 100%
             const total = fitness40 + skillFinal + knowFinal + attFinal;
 
             body.innerHTML += `<tr>
@@ -296,19 +334,19 @@
         });
     }
 
-    // 通用渲染評分表格函數 (支援 技能、知識、態度)
-    function renderScoreTable(type, configArr, maxScore, tableId) {
+    function renderScoreTable(type, maxScore, tableId) {
+        let grade = getGradeFromClass(currentClass);
+        let configArr = config[grade][type];
+        
         const head = document.getElementById(`${tableId}Header`);
         const body = document.getElementById(`${tableId}Body`);
         let thClass = `th-${tableId}`;
         let percentDesc = type === 'skills' ? '(40%)' : '(10%)';
 
-        // 生成表頭
         head.innerHTML = `<tr><th class="${thClass}">班別</th><th class="${thClass}">姓名</th>
             ${configArr.map(i => `<th class="${thClass}">${i}<br>(/${maxScore})</th>`).join('')}
             <th class="${thClass}">換算總分<br>${percentDesc}</th></tr>`;
         
-        // 生成內容
         body.innerHTML = '';
         students.forEach((s, sIdx) => {
             let rowHtml = `<td>${s.cls}</td><td>${s.name}</td>`;
@@ -316,22 +354,17 @@
 
             configArr.forEach(item => {
                 const currentVal = scoreDataObj[item] || 0;
-                // 生成 0 到 maxScore 的下拉選項
                 let options = [...Array(maxScore + 1).keys()].map(v => 
                     `<option value="${v}" ${currentVal == v ? 'selected' : ''}>${v}</option>`
                 ).join('');
-                
-                rowHtml += `<td><select class="score-dropdown" onchange="updateScore(${sIdx}, '${type}', '${item}', this.value)">
-                    ${options}</select></td>`;
+                rowHtml += `<td><select class="score-dropdown" onchange="updateScore(${sIdx}, '${type}', '${item}', this.value)">${options}</select></td>`;
             });
 
-            // 計算當列換算分
             const rawTotal = Object.values(scoreDataObj).reduce((a,b) => a+b, 0);
             let finalScore = 0;
             if (configArr.length > 0) {
                 if(type === 'skills') finalScore = (rawTotal / (configArr.length * maxScore)) * 40;
-                else if(type === 'knowledge') finalScore = (rawTotal / (configArr.length * maxScore)) * 10;
-                else if(type === 'attitude') finalScore = (rawTotal / (configArr.length * maxScore)) * 10;
+                else finalScore = (rawTotal / (configArr.length * maxScore)) * 10;
             }
 
             rowHtml += `<td class="total-score">${finalScore.toFixed(1)}</td>`;
@@ -339,26 +372,29 @@
         });
     }
 
-    function renderSkills() { renderScoreTable('skill', config.skillsItems, 10, 'skills'); }
-    function renderKnowledge() { renderScoreTable('knowledge', config.knowledgeItems, 5, 'knowledge'); }
-    function renderAttitude() { renderScoreTable('attitude', config.attitudeItems, 10, 'attitude'); }
+    function renderSkills() { renderScoreTable('skills', 10, 'skills'); }
+    function renderKnowledge() { renderScoreTable('knowledge', 5, 'knowledge'); }
+    function renderAttitude() { renderScoreTable('attitude', 10, 'attitude'); }
 
-    // 更新分數邏輯
     function updateScore(sIdx, type, item, val) {
         students[sIdx][`${type}Scores`][item] = parseFloat(val);
+        renderSummary(); // 即時更新總分
     }
 
-    // --- 匯出/匯入 考核架構設定 ---
+    // --- 匯出/匯入 分級考核架構設定 ---
     function exportConfig() {
-        const data = [["Category", "ItemName"]];
-        config.skillsItems.forEach(i => data.push(["Skill", i]));
-        config.knowledgeItems.forEach(i => data.push(["Knowledge", i]));
-        config.attitudeItems.forEach(i => data.push(["Attitude", i]));
+        const data = [["Grade", "Category", "ItemName"]]; // 加入年級欄位
+        
+        for (let g = 1; g <= 6; g++) {
+            config[g.toString()].skills.forEach(i => data.push([g, "Skill", i]));
+            config[g.toString()].knowledge.forEach(i => data.push([g, "Knowledge", i]));
+            config[g.toString()].attitude.forEach(i => data.push([g, "Attitude", i]));
+        }
         
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Config");
-        XLSX.writeFile(wb, "體育科_考核架構設定檔.xlsx");
+        XLSX.writeFile(wb, "體育科_分級考核架構設定檔.xlsx");
     }
 
     function importConfig(e) {
@@ -368,12 +404,23 @@
             const wb = XLSX.read(data, {type: 'array'});
             const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             
-            config.skillsItems = json.filter(r => r.Category === 'Skill').map(r => r.ItemName);
-            config.knowledgeItems = json.filter(r => r.Category === 'Knowledge').map(r => r.ItemName);
-            config.attitudeItems = json.filter(r => r.Category === 'Attitude').map(r => r.ItemName);
+            // 先清空所有舊設定
+            for (let i = 1; i <= 6; i++) {
+                config[i.toString()] = { skills: [], knowledge: [], attitude: [] };
+            }
+            
+            // 讀取並分配到各年級
+            json.forEach(row => {
+                let g = row.Grade ? row.Grade.toString() : "1";
+                if(config[g]) {
+                    if (row.Category === 'Skill') config[g].skills.push(row.ItemName);
+                    if (row.Category === 'Knowledge') config[g].knowledge.push(row.ItemName);
+                    if (row.Category === 'Attitude') config[g].attitude.push(row.ItemName);
+                }
+            });
             
             updateConfigLists();
-            alert("考核架構匯入成功！已經自動套用至所有班級。");
+            alert("分級考核架構匯入成功！已經自動套用至一至六年級。");
             renderAll();
         };
         reader.readAsArrayBuffer(e.target.files[0]);
@@ -383,19 +430,19 @@
     function exportCurrentClassScores() {
         if (!students || students.length === 0) return alert("沒有可匯出的成績！請先上傳檔案。");
 
+        let grade = getGradeFromClass(currentClass);
+        let currentConfig = config[grade];
+        
         let exportData = [["班別", "姓名", "體適能(40%)", "技能(40%)", "知識(10%)", "態度(10%)", "最終總分(100)"]];
         
         students.forEach(s => {
             const fitness40 = s.fitnessRaw * 4;
-            
             const skillTotal = Object.values(s.skillScores).reduce((a,b) => a+b, 0);
-            const skillFinal = config.skillsItems.length ? (skillTotal / (config.skillsItems.length * 10)) * 40 : 0;
-            
+            const skillFinal = currentConfig.skills.length ? (skillTotal / (currentConfig.skills.length * 10)) * 40 : 0;
             const knowTotal = Object.values(s.knowledgeScores).reduce((a,b) => a+b, 0);
-            const knowFinal = config.knowledgeItems.length ? (knowTotal / (config.knowledgeItems.length * 5)) * 10 : 0;
-            
+            const knowFinal = currentConfig.knowledge.length ? (knowTotal / (currentConfig.knowledge.length * 5)) * 10 : 0;
             const attTotal = Object.values(s.attitudeScores).reduce((a,b) => a+b, 0);
-            const attFinal = config.attitudeItems.length ? (attTotal / (config.attitudeItems.length * 10)) * 10 : 0;
+            const attFinal = currentConfig.attitude.length ? (attTotal / (currentConfig.attitude.length * 10)) * 10 : 0;
             
             const total = fitness40 + skillFinal + knowFinal + attFinal;
             
@@ -406,7 +453,6 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "成績匯總");
         
-        // 檔名會自動帶有班級名稱，例如 "1A_體育科成績單.xlsx"
         XLSX.writeFile(wb, `${currentClass}_體育科成績單.xlsx`);
     }
 </script>
