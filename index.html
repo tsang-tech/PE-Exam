@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>體育科全校成績管理系統 (離線自動儲存版)</title>
+    <title>體育科全校成績管理系統 v1.0 (離線自動儲存版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eef2f3; margin: 0; padding: 20px; }
@@ -47,7 +47,6 @@
         .hint { font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px; display: block; }
         .grade-badge { background: #3498db; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; vertical-align: middle; }
         
-        /* 儲存狀態提示 */
         #saveStatus { position: absolute; right: 10px; top: 10px; background: #d4edda; color: #155724; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: opacity 0.5s; }
     </style>
 </head>
@@ -57,7 +56,7 @@
     <div class="header-controls">
         <div id="saveStatus">✅ 已自動儲存</div>
         <div class="upload-area">
-            <h2 style="margin:0;">🏆 體育科成績系統 <span style="font-size:0.5em; color:#7f8c8d;">(自動儲存版)</span></h2>
+            <h2 style="margin:0;">🏆 體育科成績系統 <span style="font-size:0.5em; color:#7f8c8d;">v1.0 (自動儲存版)</span></h2>
             <div>
                 <span class="hint" id="uploadHint" style="margin-bottom:5px; font-weight:bold; color:#2980b9;">📥 首次使用請上傳全校 Excel 名單：</span>
                 <input type="file" id="excelInput" accept=".xlsx, .xls" />
@@ -172,13 +171,11 @@
 </div>
 
 <script>
-    // 核心數據結構
     let classDataStore = {}; 
     let currentClass = "";   
     let students = [];       
     let currentSettingGrade = "1"; 
     
-    // 初始化設定結構
     let config = {};
     for (let i = 1; i <= 6; i++) {
         config[i.toString()] = {
@@ -188,7 +185,6 @@
         };
     }
 
-    // ====== 本地自動儲存 (Auto-Save) 系統 ======
     const STORAGE_KEY = 'peSystemData_V1';
 
     function triggerSave() {
@@ -200,7 +196,6 @@
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
             
-            // 顯示「已自動儲存」動畫
             const status = document.getElementById('saveStatus');
             status.style.display = 'block';
             status.style.opacity = '1';
@@ -208,7 +203,6 @@
             setTimeout(() => { if(status.style.opacity === '0') status.style.display = 'none'; }, 2000);
         } catch (e) {
             console.error("儲存失敗", e);
-            alert("您的瀏覽器儲存空間不足或停用了本地儲存，資料將無法自動儲存！");
         }
     }
 
@@ -221,7 +215,7 @@
             
             const classes = Object.keys(classDataStore);
             if (classes.length > 0) {
-                document.getElementById('uploadHint').innerText = "✅ 系統已自動載入您上次的資料，您可以繼續輸入，或上傳新檔案覆蓋：";
+                document.getElementById('uploadHint').innerText = "✅ 系統已自動載入您上次的資料：";
                 document.getElementById('uploadHint').style.color = "#27ae60";
 
                 const classSelect = document.getElementById('classSelect');
@@ -245,12 +239,11 @@
     }
 
     function clearAllData() {
-        if(confirm("⚠️ 警告：這將會永久刪除您在這個瀏覽器中輸入的所有學生成績與設定！\n\n確定要清空嗎？（強烈建議先匯出成績單備份）")) {
+        if(confirm("確定要永久清空所有資料嗎？")) {
             localStorage.removeItem(STORAGE_KEY);
-            location.reload(); // 重新整理網頁
+            location.reload();
         }
     }
-    // ===========================================
 
     function getGradeFromClass(clsStr) {
         if (!clsStr) return "1";
@@ -258,36 +251,24 @@
         return match ? match[0] : "1"; 
     }
 
-    // 1. 上傳 Excel (全面解析並建立資料庫)
     document.getElementById('excelInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
-        if (Object.keys(classDataStore).length > 0) {
-            if(!confirm("系統中已經有之前儲存的成績資料。上傳新名單將會覆蓋舊資料並清空分數！\n確定要繼續嗎？")) {
-                e.target.value = ""; // 取消上傳
-                return;
-            }
-        }
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const data = new Uint8Array(event.target.result);
             const globalWorkbook = XLSX.read(data, {type: 'array'});
-            
-            // 清空舊資料
             classDataStore = {}; 
             const classSelect = document.getElementById('classSelect');
             classSelect.innerHTML = '';
             
-            // 一次性將所有班級讀入記憶體
             globalWorkbook.SheetNames.forEach(sheetName => {
                 if(sheetName.includes("Database") || sheetName.includes("Sheet")) return; 
-                
                 const sheet = globalWorkbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
                 
-                let classStudents = json.slice(1).filter(row => row[0] && row[1] && row[0] !== "Class").map(row => {
+                let classStudents = json.slice(1).filter(row => row[0] && row[1]).map(row => {
                     let s1 = parseInt(row[8]) || 0; let s2 = parseInt(row[10]) || 0;
                     let s3 = parseInt(row[12]) || 0; let s4 = parseInt(row[14]) || 0;
                     return {
@@ -309,11 +290,7 @@
             
             if(classSelect.options.length > 0) {
                 document.getElementById('classSelectorArea').style.display = 'flex';
-                document.getElementById('uploadHint').innerText = "✅ 名單匯入成功！您可以開始輸入分數。";
-                document.getElementById('uploadHint').style.color = "#27ae60";
                 switchClass(classSelect.options[0].value);
-            } else {
-                alert("找不到有效的班級資料，請檢查 Excel 格式。");
             }
         };
         reader.readAsArrayBuffer(file);
@@ -323,13 +300,11 @@
         currentClass = sheetName;
         let grade = getGradeFromClass(currentClass);
         document.getElementById('currentGradeBadge').innerText = `系統判定年級: 小${grade}`;
-        
         students = classDataStore[sheetName];
-        triggerSave(); // 儲存目前所在班級狀態
+        triggerSave();
         renderAll();
     }
 
-    // --- UI 切換 ---
     function showTab(tabId) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -338,53 +313,38 @@
         renderAll(); 
     }
 
-    // --- 設定管理 ---
-    function switchSettingGrade(gradeStr) {
-        currentSettingGrade = gradeStr;
-        updateConfigLists();
-    }
-
     function addItem(type) {
         let nameInputId = type === 'skills' ? 'newSkillName' : (type === 'knowledge' ? 'newKnowledgeName' : 'newAttitudeName');
         let maxInputId = type === 'skills' ? 'newSkillMax' : (type === 'knowledge' ? 'newKnowledgeMax' : 'newAttitudeMax');
-        
         const nameStr = document.getElementById(nameInputId).value.trim();
         const maxScore = parseInt(document.getElementById(maxInputId).value) || 10;
         
-        if (!nameStr) return alert("請輸入項目名稱");
-        if (maxScore <= 0) return alert("滿分必須大於 0");
-        if (config[currentSettingGrade][type].some(i => i.name === nameStr)) return alert("項目名稱已存在！");
-
+        if (!nameStr) return alert("請輸入名稱");
         config[currentSettingGrade][type].push({ name: nameStr, max: maxScore });
-        document.getElementById(nameInputId).value = '';
-        
         updateConfigLists();
-        triggerSave(); // 儲存架構設定
+        triggerSave();
         renderAll();
     }
 
     function clearItems(type) {
-        if(confirm(`確定要清空 小${currentSettingGrade} 的所有${type}項目嗎？`)){
+        if(confirm(`清空 小${currentSettingGrade} 的${type}嗎？`)){
             config[currentSettingGrade][type] = [];
             updateConfigLists();
-            triggerSave(); // 儲存架構設定
+            triggerSave();
             renderAll();
         }
     }
 
     function updateConfigLists() {
         let c = config[currentSettingGrade];
-        const formatList = (arr) => arr.map(i => `<span style="background:#e0e0e0; padding:2px 8px; border-radius:12px; margin-right:5px; display:inline-block; margin-bottom:5px;">${i.name} (滿分:${i.max})</span>`).join("") || "無";
-        
-        document.getElementById('skillsList').innerHTML = `小${currentSettingGrade} 項目：<br>` + formatList(c.skills);
-        document.getElementById('knowledgeList').innerHTML = `小${currentSettingGrade} 題目：<br>` + formatList(c.knowledge);
-        document.getElementById('attitudeList').innerHTML = `小${currentSettingGrade} 項目：<br>` + formatList(c.attitude);
+        const formatList = (arr) => arr.map(i => `<span style="background:#e0e0e0; padding:2px 8px; border-radius:12px; margin-right:5px; display:inline-block; margin-bottom:5px;">${i.name}(${i.max})</span>`).join("") || "無";
+        document.getElementById('skillsList').innerHTML = formatList(c.skills);
+        document.getElementById('knowledgeList').innerHTML = formatList(c.knowledge);
+        document.getElementById('attitudeList').innerHTML = formatList(c.attitude);
     }
 
-    // --- 計算總分邏輯 ---
     function calculateFinalScore(student, currentConfig) {
         const fitness40 = student.fitnessRawTotal * 4;
-        
         const calcSection = (typeConfig, scoreData, weight) => {
             let raw = 0, totalMax = 0;
             typeConfig.forEach(item => {
@@ -393,20 +353,20 @@
             });
             return totalMax > 0 ? (raw / totalMax) * weight : 0;
         };
-
-        const skillFinal = calcSection(currentConfig.skills, student.skillsScores, 40);
-        const knowFinal = calcSection(currentConfig.knowledge, student.knowledgeScores, 10);
-        const attFinal = calcSection(currentConfig.attitude, student.attitudeScores, 10);
-
-        return { fitness40, skillFinal, knowFinal, attFinal, total: fitness40 + skillFinal + knowFinal + attFinal };
+        return { 
+            fitness40, 
+            skillFinal: calcSection(currentConfig.skills, student.skillsScores, 40),
+            knowFinal: calcSection(currentConfig.knowledge, student.knowledgeScores, 10),
+            attFinal: calcSection(currentConfig.attitude, student.attitudeScores, 10),
+            total: fitness40 + calcSection(currentConfig.skills, student.skillsScores, 40) + calcSection(currentConfig.knowledge, student.knowledgeScores, 10) + calcSection(currentConfig.attitude, student.attitudeScores, 10)
+        };
     }
 
-    // --- 核心渲染邏輯 ---
     function renderAll() {
         if (!students || students.length === 0) return;
-        renderSkills();
-        renderKnowledge();
-        renderAttitude();
+        renderScoreTable('skills', 'skills');
+        renderScoreTable('knowledge', 'knowledge');
+        renderScoreTable('attitude', 'attitude');
         renderSummary(); 
     }
 
@@ -414,155 +374,90 @@
         const body = document.getElementById('summaryBody');
         body.innerHTML = '';
         let grade = getGradeFromClass(currentClass);
-        let currentConfig = config[grade];
-        
         students.forEach(s => {
-            const scores = calculateFinalScore(s, currentConfig);
-            body.innerHTML += `<tr>
-                <td>${s.cls}</td><td>${s.name}</td>
-                <td>${scores.fitness40.toFixed(1)}</td>
-                <td>${scores.skillFinal.toFixed(1)}</td>
-                <td>${scores.knowFinal.toFixed(1)}</td>
-                <td>${scores.attFinal.toFixed(1)}</td>
-                <td class="total-score">${scores.total.toFixed(1)}</td>
-            </tr>`;
+            const scores = calculateFinalScore(s, config[grade]);
+            body.innerHTML += `<tr><td>${s.cls}</td><td>${s.name}</td><td>${scores.fitness40.toFixed(1)}</td><td>${scores.skillFinal.toFixed(1)}</td><td>${scores.knowFinal.toFixed(1)}</td><td>${scores.attFinal.toFixed(1)}</td><td class="total-score">${scores.total.toFixed(1)}</td></tr>`;
         });
     }
 
     function renderScoreTable(type, tableId) {
         let grade = getGradeFromClass(currentClass);
         let configArr = config[grade][type]; 
-        
         const head = document.getElementById(`${tableId}Header`);
         const body = document.getElementById(`${tableId}Body`);
-        let thClass = `th-${tableId}`;
-        let percentDesc = type === 'skills' ? '(40%)' : '(10%)';
-
-        head.innerHTML = `<tr><th class="${thClass}">班別</th><th class="${thClass}">姓名</th>
-            ${configArr.map(i => `<th class="${thClass}">${i.name}<br>(滿分 ${i.max})</th>`).join('')}
-            <th class="${thClass}">換算總分<br>${percentDesc}</th></tr>`;
-        
-        body.innerHTML = '';
-        let totalMaxScore = configArr.reduce((sum, item) => sum + item.max, 0);
         let weight = type === 'skills' ? 40 : 10;
 
+        head.innerHTML = `<tr><th>班別</th><th>姓名</th>${configArr.map(i => `<th>${i.name}<br>(${i.max})</th>`).join('')}<th>換算分數</th></tr>`;
+        body.innerHTML = '';
         students.forEach((s, sIdx) => {
             let rowHtml = `<td>${s.cls}</td><td>${s.name}</td>`;
-            let scoreDataObj = s[`${type}Scores`];
-
             configArr.forEach(item => {
-                const currentVal = scoreDataObj[item.name] || 0;
-                let options = [...Array(item.max + 1).keys()].map(v => 
-                    `<option value="${v}" ${currentVal == v ? 'selected' : ''}>${v}</option>`
-                ).join('');
-                rowHtml += `<td><select class="score-dropdown" onchange="updateScore(${sIdx}, '${type}', '${item.name}', this.value)">${options}</select></td>`;
+                let val = s[`${type}Scores`][item.name] || 0;
+                let opts = [...Array(item.max+1).keys()].map(v => `<option value="${v}" ${val==v?'selected':''}>${v}</option>`).join('');
+                rowHtml += `<td><select class="score-dropdown" onchange="updateScore(${sIdx},'${type}','${item.name}',this.value)">${opts}</select></td>`;
             });
-
-            let rawTotal = configArr.reduce((sum, item) => sum + (scoreDataObj[item.name] || 0), 0);
-            let finalScore = totalMaxScore > 0 ? (rawTotal / totalMaxScore) * weight : 0;
-
-            rowHtml += `<td class="total-score">${finalScore.toFixed(1)}</td>`;
+            let raw = configArr.reduce((sum, i) => sum + (s[`${type}Scores`][i.name]||0), 0);
+            let max = configArr.reduce((sum, i) => sum + i.max, 0);
+            rowHtml += `<td class="total-score">${(max>0?(raw/max)*weight:0).toFixed(1)}</td>`;
             body.innerHTML += `<tr>${rowHtml}</tr>`;
         });
     }
 
-    function renderSkills() { renderScoreTable('skills', 'skills'); }
-    function renderKnowledge() { renderScoreTable('knowledge', 'knowledge'); }
-    function renderAttitude() { renderScoreTable('attitude', 'attitude'); }
-
-    // 當輸入分數時觸發
     function updateScore(sIdx, type, itemName, val) {
         students[sIdx][`${type}Scores`][itemName] = parseFloat(val);
-        triggerSave(); // 輸入完成，立刻自動儲存！
+        triggerSave();
         renderSummary(); 
     }
 
-    // --- 匯出/匯入 分級考核架構設定 ---
     function exportConfig() {
         const data = [["Grade", "Category", "ItemName", "MaxScore"]]; 
         for (let g = 1; g <= 6; g++) {
-            config[g.toString()].skills.forEach(i => data.push([g, "Skill", i.name, i.max]));
-            config[g.toString()].knowledge.forEach(i => data.push([g, "Knowledge", i.name, i.max]));
-            config[g.toString()].attitude.forEach(i => data.push([g, "Attitude", i.name, i.max]));
+            config[g].skills.forEach(i => data.push([g, "Skill", i.name, i.max]));
+            config[g].knowledge.forEach(i => data.push([g, "Knowledge", i.name, i.max]));
+            config[g].attitude.forEach(i => data.push([g, "Attitude", i.name, i.max]));
         }
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Config");
-        XLSX.writeFile(wb, "體育科_考核架構設定檔(含滿分).xlsx");
+        XLSX.writeFile({SheetNames:["Config"], Sheets:{Config:XLSX.utils.aoa_to_sheet(data)}}, "考核架構設定.xlsx");
     }
 
     function importConfig(e) {
         const reader = new FileReader();
         reader.onload = (event) => {
-            const data = new Uint8Array(event.target.result);
-            const wb = XLSX.read(data, {type: 'array'});
-            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-            
-            for (let i = 1; i <= 6; i++) { config[i.toString()] = { skills: [], knowledge: [], attitude: [] }; }
-            
+            const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(event.target.result), {type:'array'}).Sheets["Config"]);
+            for (let i=1; i<=6; i++) config[i.toString()] = {skills:[], knowledge:[], attitude:[]};
             json.forEach(row => {
-                let g = row.Grade ? row.Grade.toString() : "1";
-                let defaultMax = row.Category === 'Knowledge' ? 5 : 10;
-                let max = parseInt(row.MaxScore) || defaultMax;
-                if(config[g]) {
-                    if (row.Category === 'Skill') config[g].skills.push({name: row.ItemName, max: max});
-                    if (row.Category === 'Knowledge') config[g].knowledge.push({name: row.ItemName, max: max});
-                    if (row.Category === 'Attitude') config[g].attitude.push({name: row.ItemName, max: max});
-                }
+                let g = row.Grade.toString();
+                if(row.Category==='Skill') config[g].skills.push({name:row.ItemName, max:row.MaxScore});
+                if(row.Category==='Knowledge') config[g].knowledge.push({name:row.ItemName, max:row.MaxScore});
+                if(row.Category==='Attitude') config[g].attitude.push({name:row.ItemName, max:row.MaxScore});
             });
-            updateConfigLists();
-            triggerSave(); // 匯入架構後自動儲存
-            alert("分級考核架構匯入成功！");
-            renderAll();
+            updateConfigLists(); triggerSave(); renderAll();
         };
         reader.readAsArrayBuffer(e.target.files[0]);
     }
 
-    // --- 🏆 終極匯出：詳盡全數據成績單 ---
     function exportDetailedScores() {
-        if (!students || students.length === 0) return alert("沒有可匯出的成績！請先上傳檔案。");
-
         let grade = getGradeFromClass(currentClass);
-        let currentConfig = config[grade];
-        
-        let headerRow = ["班別", "姓名", "仰臥起坐(5)", "坐地前伸(5)", "跑/行(5)", "手握力(5)", "體適能換算(40%)"];
-        currentConfig.skills.forEach(i => headerRow.push(`[技能]${i.name}(${i.max})`)); headerRow.push("技能換算(40%)");
-        currentConfig.knowledge.forEach(i => headerRow.push(`[知識]${i.name}(${i.max})`)); headerRow.push("知識換算(10%)");
-        currentConfig.attitude.forEach(i => headerRow.push(`[態度]${i.name}(${i.max})`)); headerRow.push("態度換算(10%)");
-        headerRow.push("全科總分(100)");
+        let c = config[grade];
+        let header = ["班別", "姓名", "仰臥起坐", "坐地前伸", "跑/行", "手握力", "體適能(40%)"];
+        c.skills.forEach(i => header.push(`[技]${i.name}`)); header.push("技能(40%)");
+        c.knowledge.forEach(i => header.push(`[知]${i.name}`)); header.push("知識(10%)");
+        c.attitude.forEach(i => header.push(`[態]${i.name}`)); header.push("態度(10%)");
+        header.push("總分");
 
-        let exportData = [headerRow];
-        
+        let data = [header];
         students.forEach(s => {
-            let rowData = [s.cls, s.name];
-            const scores = calculateFinalScore(s, currentConfig);
-
-            rowData.push(s.fitnessDetail.situp, s.fitnessDetail.reach, s.fitnessDetail.run, s.fitnessDetail.grip);
-            rowData.push(scores.fitness40.toFixed(1));
-
-            currentConfig.skills.forEach(i => rowData.push(s.skillsScores[i.name] || 0));
-            rowData.push(scores.skillFinal.toFixed(1));
-
-            currentConfig.knowledge.forEach(i => rowData.push(s.knowledgeScores[i.name] || 0));
-            rowData.push(scores.knowFinal.toFixed(1));
-
-            currentConfig.attitude.forEach(i => rowData.push(s.attitudeScores[i.name] || 0));
-            rowData.push(scores.attFinal.toFixed(1));
-
-            rowData.push(scores.total.toFixed(1));
-            exportData.push(rowData);
+            let res = calculateFinalScore(s, c);
+            let row = [s.cls, s.name, s.fitnessDetail.situp, s.fitnessDetail.reach, s.fitnessDetail.run, s.fitnessDetail.grip, res.fitness40.toFixed(1)];
+            c.skills.forEach(i => row.push(s.skillsScores[i.name]||0)); row.push(res.skillFinal.toFixed(1));
+            c.knowledge.forEach(i => row.push(s.knowledgeScores[i.name]||0)); row.push(res.knowFinal.toFixed(1));
+            c.attitude.forEach(i => row.push(s.attitudeScores[i.name]||0)); row.push(res.attFinal.toFixed(1));
+            row.push(res.total.toFixed(1));
+            data.push(row);
         });
-        
-        const ws = XLSX.utils.aoa_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "詳盡成績數據");
-        XLSX.writeFile(wb, `${currentClass}_體育科詳盡成績單.xlsx`);
+        XLSX.writeFile({SheetNames:["Scores"], Sheets:{Scores:XLSX.utils.aoa_to_sheet(data)}}, `${currentClass}_成績單.xlsx`);
     }
 
-    // 網頁載入時啟動
-    window.onload = function() {
-        loadSavedData();
-    };
+    window.onload = loadSavedData;
 </script>
 </body>
 </html>
