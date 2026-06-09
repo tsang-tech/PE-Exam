@@ -185,7 +185,7 @@
     let currentClass = "";   
     let students = [];       
     let currentSettingGrade = "1"; 
-    let currentExamPeriod = "1"; // 新增：預設為第一次考試
+    let currentExamPeriod = "1"; // 預設為第一次考試
     
     // 初始化設定結構
     let config = {};
@@ -206,7 +206,7 @@
                 classDataStore: classDataStore,
                 config: config,
                 currentClass: currentClass,
-                currentExamPeriod: currentExamPeriod // 保存期別設定
+                currentExamPeriod: currentExamPeriod
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
             
@@ -344,11 +344,11 @@
         renderAll();
     }
 
-    // 新增：切換考試期別
+    // 切換考試期別
     function switchExamPeriod(periodVal) {
         currentExamPeriod = periodVal;
-        triggerSave(); // 儲存期別狀態
-        renderAll();   // 重新計算並渲染所有分數
+        triggerSave(); 
+        renderAll();   
     }
 
     // --- UI 切換 ---
@@ -403,22 +403,36 @@
         document.getElementById('attitudeList').innerHTML = `小${currentSettingGrade} 項目：<br>` + formatList(c.attitude);
     }
 
-    // --- 計算總分邏輯 (加入考試期別抽取) ---
+    // --- 計算總分邏輯 (全新分數轉換階梯) ---
     function calculateFinalScore(student, currentConfig) {
-        // 核心更新：根據期別提取對應的兩項分數
-        let fitRaw = 0;
+        
+        // 分數轉換輔助函數：0分->4, 1分->8, 2分->12, 3分->16, 4或5分->20
+        const mapFitnessScore = (excelScore) => {
+            if (excelScore === 0) return 4;
+            if (excelScore === 1) return 8;
+            if (excelScore === 2) return 12;
+            if (excelScore === 3) return 16;
+            if (excelScore >= 4) return 20;
+            return 0; // 預防異常資料
+        };
+
+        // 耐力跑必考，進行轉換
+        let runScore = mapFitnessScore(student.fitnessDetail.run);
+        let specScore = 0;
+
+        // 根據期別提取對應專項，並進行轉換
         if (currentExamPeriod === "1") {
-            fitRaw = student.fitnessDetail.run + student.fitnessDetail.reach; // 耐力跑 + 坐地前伸
+            specScore = mapFitnessScore(student.fitnessDetail.reach); // 坐地前伸
         } else if (currentExamPeriod === "2") {
-            fitRaw = student.fitnessDetail.run + student.fitnessDetail.situp; // 耐力跑 + 仰臥起坐
+            specScore = mapFitnessScore(student.fitnessDetail.situp); // 仰臥起坐
         } else if (currentExamPeriod === "3") {
-            fitRaw = student.fitnessDetail.run + student.fitnessDetail.grip;  // 耐力跑 + 手握力
+            specScore = mapFitnessScore(student.fitnessDetail.grip);  // 手握力
         } else {
-            fitRaw = student.fitnessDetail.run + student.fitnessDetail.reach; // 預設防呆
+            specScore = mapFitnessScore(student.fitnessDetail.reach); // 預設防呆
         }
         
-        // 分數計算：兩項總分 x 4 = 體適能佔分 (滿分40)
-        const fitness40 = fitRaw * 4;
+        // 計算體適能總分 (最高 20 + 20 = 40)
+        const fitness40 = runScore + specScore;
         
         const calcSection = (typeConfig, scoreData, weight) => {
             let raw = 0, totalMax = 0;
@@ -560,10 +574,9 @@
         let grade = getGradeFromClass(currentClass);
         let currentConfig = config[grade];
         
-        // 根據選取的期別，更改匯出標題，讓老師清楚知道抽取了哪兩項
         let periodText = currentExamPeriod === "1" ? "第一次(跑+前伸)" : (currentExamPeriod === "2" ? "第二次(跑+仰臥)" : "第三次(跑+手握力)");
         
-        let headerRow = ["班別", "姓名", "仰臥起坐(5)", "坐地前伸(5)", "跑/行(5)", "手握力(5)", `體適能換算(${periodText})`];
+        let headerRow = ["班別", "姓名", "仰臥起坐(原分)", "坐地前伸(原分)", "跑/行(原分)", "手握力(原分)", `體適能換算(${periodText})`];
         currentConfig.skills.forEach(i => headerRow.push(`[技能]${i.name}(${i.max})`)); headerRow.push("技能換算(40%)");
         currentConfig.knowledge.forEach(i => headerRow.push(`[知識]${i.name}(${i.max})`)); headerRow.push("知識換算(10%)");
         currentConfig.attitude.forEach(i => headerRow.push(`[態度]${i.name}(${i.max})`)); headerRow.push("態度換算(10%)");
@@ -575,7 +588,6 @@
             let rowData = [s.cls, s.name];
             const scores = calculateFinalScore(s, currentConfig);
 
-            // 保留 4 項原始分供參考，然後顯示經過選擇期別計算後的 fitness40 分數
             rowData.push(s.fitnessDetail.situp, s.fitnessDetail.reach, s.fitnessDetail.run, s.fitnessDetail.grip);
             rowData.push(scores.fitness40.toFixed(1));
 
