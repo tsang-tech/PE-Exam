@@ -99,6 +99,8 @@
                         <th class="th-summary">知識 (10%)</th>
                         <th class="th-summary">態度 (10%)</th>
                         <th class="th-summary">總分 (100)</th>
+                        <th class="th-summary" style="background-color: #2980b9;">呈分</th>
+                        <th class="th-summary" style="background-color: #27ae60;">Grade</th>
                     </tr>
                 </thead>
                 <tbody id="summaryBody"></tbody>
@@ -450,6 +452,15 @@
         return { fitness40, skillFinal, knowFinal, attFinal, total: fitness40 + skillFinal + knowFinal + attFinal };
     }
 
+    // 新增：根據呈分（五分一階）換算成 Grade 等級 (A-E)
+    function getLetterGrade(roundedScore) {
+        if (roundedScore >= 85) return 'A';
+        if (roundedScore >= 70) return 'B';
+        if (roundedScore >= 60) return 'C';
+        if (roundedScore >= 30) return 'D';
+        return 'E';
+    }
+
     // --- 核心渲染邏輯 ---
     function renderAll() {
         if (!students || students.length === 0) return;
@@ -467,6 +478,12 @@
         
         students.forEach(s => {
             const scores = calculateFinalScore(s, currentConfig);
+            
+            // 計算呈分 (化成個位數為 0 或 5，即四捨五入到最接近的 5 的倍數)
+            const roundedScore = Math.round(scores.total / 5) * 5;
+            // 換算 Grade
+            const letterGrade = getLetterGrade(roundedScore);
+
             body.innerHTML += `<tr>
                 <td>${s.cls}</td><td>${s.name}</td>
                 <td>${scores.fitness40.toFixed(1)}</td>
@@ -474,6 +491,8 @@
                 <td>${scores.knowFinal.toFixed(1)}</td>
                 <td>${scores.attFinal.toFixed(1)}</td>
                 <td class="total-score">${scores.total.toFixed(1)}</td>
+                <td style="font-weight: bold; color: #2980b9; font-size: 1.1em;">${roundedScore}</td>
+                <td style="font-weight: bold; color: #27ae60; font-size: 1.1em;">${letterGrade}</td>
             </tr>`;
         });
     }
@@ -567,7 +586,7 @@
         reader.readAsArrayBuffer(e.target.files[0]);
     }
 
-    // --- 🏆 終極匯出：詳盡全數據成績單 ---
+    // --- 🏆 終極匯出：詳盡全數據成績單 (加入呈分與 Grade 欄位) ---
     function exportDetailedScores() {
         if (!students || students.length === 0) return alert("沒有可匯出的成績！請先上傳檔案。");
 
@@ -580,13 +599,16 @@
         currentConfig.skills.forEach(i => headerRow.push(`[技能]${i.name}(${i.max})`)); headerRow.push("技能換算(40%)");
         currentConfig.knowledge.forEach(i => headerRow.push(`[知識]${i.name}(${i.max})`)); headerRow.push("知識換算(10%)");
         currentConfig.attitude.forEach(i => headerRow.push(`[態度]${i.name}(${i.max})`)); headerRow.push("態度換算(10%)");
-        headerRow.push("全科總分(100)");
+        headerRow.push("全科總分(100)", "呈分", "Grade");
 
         let exportData = [headerRow];
         
         students.forEach(s => {
             let rowData = [s.cls, s.name];
             const scores = calculateFinalScore(s, currentConfig);
+            
+            const roundedScore = Math.round(scores.total / 5) * 5;
+            const letterGrade = getLetterGrade(roundedScore);
 
             rowData.push(s.fitnessDetail.situp, s.fitnessDetail.reach, s.fitnessDetail.run, s.fitnessDetail.grip);
             rowData.push(scores.fitness40.toFixed(1));
@@ -601,6 +623,8 @@
             rowData.push(scores.attFinal.toFixed(1));
 
             rowData.push(scores.total.toFixed(1));
+            rowData.push(roundedScore);
+            rowData.push(letterGrade);
             exportData.push(rowData);
         });
         
